@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Turnstile Pre-Clearance Fetch Demo</title>
+  <script>
+    let originalFetch;
+
+    window.turnstileLoad = function () {
+      originalFetch = window.fetch;
+
+      const overlay = document.createElement("div");
+      overlay.style = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:none;";
+      overlay.innerHTML = `
+        <div style="margin-top:20%;text-align:center;color:white">
+          One more step to verify...
+          <div id="turnstile-widget" style="margin-top:20px;"></div>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      window.fetch = async function (...args) {
+        let res = await originalFetch(...args);
+
+        if (res.headers.get("cf-mitigated") === "challenge") {
+          overlay.style.display = "block";
+
+          await new Promise((resolve, reject) => {
+            turnstile.render("#turnstile-widget", {
+              sitekey: "", // replace to your key
+              callback: function (token, preCleared) {
+                if (preCleared) {
+                  overlay.style.display = "none";
+                  resolve();
+                } else {
+                  reject("Not pre-cleared");
+                }
+              },
+              "error-callback": () => {
+                overlay.style.display = "none";
+                reject("Turnstile failed");
+              }
+            });
+          });
+
+          res = await originalFetch(...args); // retry
+        }
+
+        return res;
+      };
+    };
+  </script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=turnstileLoad" async defer></script>
+</head>
+<body>
+  <h1>Fetch 보호 데모</h1>
+  <button onclick="requestAPI()">API 요청</button>
+  <pre id="output"></pre>
+
+  <script>
+    async function requestAPI() {
+      const output = document.getElementById("output");
+      try {
+        const res = await fetch("/api");
+        if (res.ok) {
+          const json = await res.json();
+          output.textContent = JSON.stringify(json);
+        } else {
+          output.textContent = "API 오류: " + res.status;
+        }
+      } catch (e) {
+        output.textContent = "네트워크 오류: " + e;
+      }
+    }
+  </script>
+</body>
+</html>
+
