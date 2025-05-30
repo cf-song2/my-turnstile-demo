@@ -1,14 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <title>Turnstile Pre-Clearance Fetch Demo</title>
+<body>
+  <h1>Fetch 보호 데모</h1>
+  <button id="fetchBtn">API 요청</button>
+  <pre id="output"></pre>
+
   <script>
-    let originalFetch;
-    let turnstileToken = null;
+    let originalFetch = window.fetch;
+    let verified = false;
 
     window.turnstileLoad = function () {
-      originalFetch = window.fetch;
-
       const overlay = document.createElement("div");
       overlay.style = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:none;";
       overlay.innerHTML = `
@@ -21,24 +20,35 @@
       window.fetch = async function (...args) {
         let res = await originalFetch(...args);
 
-        if (res.headers.get("cf-mitigated") === "challenge") {
+        if (res.headers.get("cf-mitigated") === "challenge" && !verified) {
           overlay.style.display = "block";
 
           await new Promise((resolve, reject) => {
             turnstile.render("#turnstile-widget", {
-              sitekey: "", // Replace to your key
-              callback: function (token, preCleared) {
-                if (preCleared) {
-                  turnstileToken = token;
-                  overlay.style.display = "none";
-                  resolve();
-                } else {
-                  reject("Not pre-cleared");
+              sitekey: "",
+              callback: async (token) => {
+                try {
+                  const result = await fetch("/siteverify", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ token })
+                  });
+
+                  const data = await result.json();
+                  if (data.success) {
+                    verified = true;
+                    overlay.style.display = "none";
+                    resolve();
+                  } else {
+                    reject("Verification failed");
+                  }
+                } catch (e) {
+                  reject(e);
                 }
               },
               "error-callback": () => {
                 overlay.style.display = "none";
-                reject("Turnstile failed");
+                reject("Turnstile error");
               }
             });
           });
@@ -49,30 +59,20 @@
         return res;
       };
     };
-  </script>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=turnstileLoad" async defer></script>
-</head>
-<body>
-  <h1>Fetch 보호 데모</h1>
-  <button onclick="requestAPI()">API 요청</button>
-  <pre id="output"></pre>
 
-  <script>
-    async function requestAPI() {
+    document.getElementById("fetchBtn").addEventListener("click", async () => {
       const output = document.getElementById("output");
+      output.textContent = "요청 중...";
+
       try {
-        const res = await fetch("/api", {
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${turnstileToken}`
-          }
-        });
+        const res = await fetch("/api");
         const json = await res.json();
         output.textContent = JSON.stringify(json);
       } catch (e) {
-        output.textContent = "오류 발생: " + e;
+        output.textContent = "오류: " + e;
       }
-    }
+    });
   </script>
+
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=turnstileLoad" async defer></script>
 </body>
-</html>

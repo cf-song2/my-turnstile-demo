@@ -2,8 +2,8 @@ name = "my-turnstile-demo"
 compatibility_date = "2025-05-30"
 pages_build_output_dir = "./public"
 
-[vars]
-TURNSTILE_SECRET_KEY = ""
-
 [env.production]
 compatibility_flags = ["nodejs_compat"]
+
+[env.production.vars]
+TURNSTILE_SECRET_KEY = ""
