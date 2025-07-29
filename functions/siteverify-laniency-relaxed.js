@@ -15,6 +15,7 @@ export async function onRequest(context) {
     formData.append("secret", context.env.TURNSTILE_SECRET_KEY);
     formData.append("response", token);
     formData.append("remoteip", remoteip);
+    formData.append("remoteip_leniency", "relaxed");
   
     const verify = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
@@ -30,6 +31,7 @@ export async function onRequest(context) {
         sentData: {
           response: token.substring(0, 20) + "...",
           remoteip: remoteip,
+          remoteip_leniency: "relaxed",
           secret: "[HIDDEN]"
         },
         clientIP: remoteip

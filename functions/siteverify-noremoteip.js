@@ -9,12 +9,9 @@ export async function onRequest(context) {
       });
     }
   
-    const remoteip = context.request.headers.get("CF-Connecting-IP") || "";
-  
     const formData = new URLSearchParams();
     formData.append("secret", context.env.TURNSTILE_SECRET_KEY);
     formData.append("response", token);
-    formData.append("remoteip", remoteip);
   
     const verify = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
@@ -29,10 +26,9 @@ export async function onRequest(context) {
       debug: {
         sentData: {
           response: token.substring(0, 20) + "...",
-          remoteip: remoteip,
           secret: "[HIDDEN]"
         },
-        clientIP: remoteip
+        clientIP: context.request.headers.get("CF-Connecting-IP") || "N/A"
       }
     };
     

@@ -25,7 +25,7 @@
 
           await new Promise((resolve, reject) => {
             turnstile.render("#turnstile-widget", {
-              sitekey: "",
+              sitekey: "0x4AAAAAABfJ0geNfkeCkZKq",
               callback: async (token) => {
                 try {
                   const result = await fetch("/siteverify", {

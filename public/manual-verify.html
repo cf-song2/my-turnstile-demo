@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manual Verify (Turnstile Only)</title>
+  <style>
+    #result {
+      margin-top: 1rem;
+      white-space: pre-wrap;
+      color: green;
+    }
+    #verify-btn {
+      padding: 10px 20px;
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    #verify-btn:hover {
+      background-color: #0052a3;
+    }
+    #verify-btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      display: none;
+    }
+    .overlay-content {
+      margin-top: 20%;
+      text-align: center;
+      color: white;
+    }
+    #turnstile-widget {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Manual Turnstile Verification</h1>
+  <button id="verify-btn">Verify with Turnstile</button>
+  <pre id="result">Click the button to start verification...</pre>
+
+  <script>
+    let turnstileToken = null;
+    let isVerifying = false;
+
+    window.turnstileLoad = function () {
+      console.log('Turnstile loaded successfully');
+      
+      // 버튼 클릭 이벤트 설정
+      document.getElementById('verify-btn').addEventListener('click', startVerification);
+    };
+
+    function startVerification() {
+      if (isVerifying) return;
+      
+      isVerifying = true;
+      const btn = document.getElementById('verify-btn');
+      const result = document.getElementById('result');
+      
+      btn.disabled = true;
+      btn.textContent = 'Verifying...';
+      result.textContent = '🔄 Starting verification process...';
+
+      // 오버레이 생성
+      const overlay = document.createElement('div');
+      overlay.className = 'overlay';
+      overlay.innerHTML = `
+        <div class="overlay-content">
+          <h2>One more step to verify...</h2>
+          <div id="turnstile-widget"></div>
+          <br>
+          <button onclick="cancelVerification()" style="background:#666;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">Cancel</button>
+        </div>
+      `;
+      
+      document.body.appendChild(overlay);
+      overlay.style.display = 'block';
+
+      // Turnstile 렌더링
+      try {
+        turnstile.render('#turnstile-widget', {
+          sitekey: "0x4AAAAAABfJ0geNfkeCkZKq",
+          callback: function (token) {
+            console.log('Turnstile verification successful');
+            turnstileToken = token;
+            
+            // 성공 처리
+            document.getElementById('result').textContent = '✅ Verification successful!\n\nToken: ' + token;
+            
+            // 오버레이 제거
+            document.body.removeChild(overlay);
+            
+            // 버튼 상태 복원
+            btn.disabled = false;
+            btn.textContent = 'Verify Again';
+            isVerifying = false;
+          },
+          'expired-callback': function () {
+            console.log('Turnstile token expired');
+            document.getElementById('result').textContent = '⚠️ Token expired. Please try again.';
+            
+            // 오버레이 제거
+            document.body.removeChild(overlay);
+            
+            // 버튼 상태 복원
+            btn.disabled = false;
+            btn.textContent = 'Verify with Turnstile';
+            isVerifying = false;
+          },
+          'error-callback': function (error) {
+            console.error('Turnstile error:', error);
+            document.getElementById('result').textContent = '❌ Verification failed. Please try again.\n\nError: ' + (error || 'Unknown error');
+            
+            // 오버레이 제거
+            document.body.removeChild(overlay);
+            
+            // 버튼 상태 복원
+            btn.disabled = false;
+            btn.textContent = 'Retry Verification';
+            isVerifying = false;
+          }
+        });
+      } catch (error) {
+        console.error('Failed to render Turnstile:', error);
+        document.getElementById('result').textContent = '❌ Failed to load Turnstile. Please reload the page.';
+        
+        // 오버레이 제거
+        document.body.removeChild(overlay);
+        
+        // 버튼 상태 복원
+        btn.disabled = false;
+        btn.textContent = 'Retry Verification';
+        isVerifying = false;
+      }
+    }
+
+    // 취소 함수 (전역으로 등록)
+    window.cancelVerification = function() {
+      const overlay = document.querySelector('.overlay');
+      if (overlay) {
+        document.body.removeChild(overlay);
+      }
+      
+      const btn = document.getElementById('verify-btn');
+      btn.disabled = false;
+      btn.textContent = 'Verify with Turnstile';
+      
+      document.getElementById('result').textContent = '❌ Verification cancelled.';
+      isVerifying = false;
+    };
+
+    // 추가: 토큰 복사 기능
+    function copyToken() {
+      if (turnstileToken) {
+        navigator.clipboard.writeText(turnstileToken).then(() => {
+          alert('Token copied to clipboard!');
+        });
+      }
+    }
+  </script>
+
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=turnstileLoad" async defer></script>
+</body>
+</html>

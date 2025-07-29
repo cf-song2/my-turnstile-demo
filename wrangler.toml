@@ -4,6 +4,3 @@ pages_build_output_dir = "./public"
 
 [env.production]
 compatibility_flags = ["nodejs_compat"]
-
-[env.production.vars]
-TURNSTILE_SECRET_KEY = ""
